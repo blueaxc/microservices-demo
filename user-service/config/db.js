@@ -1,10 +1,15 @@
 const mongoose = require('mongoose')
 
-const mongoURL = process.env.MONGO_URL || 'mongodb://mongo:27017/userdb';
+const connectDB = async () => {
+    try{
+        await mongoose.connect(process.env.MONGO_URL, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true
+        })
+        console.log("Connect to MongoDB (user-service)")
+    }catch (err) {
+        console.log("MongoDB connect error (user-service)", err)
+    }
+}
 
-mongoose.connect(mongoURL) 
-.then(() => {
-    console.log('MongoDB Connected')
-}).catch((err) => {
-    console.error('Mongo DB error', err)
-})
+module.exports = connectDB

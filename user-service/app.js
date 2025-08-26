@@ -1,34 +1,60 @@
-const express = require('express');
-const amqp = require('amqplib');
+const express = require('express')
+const amqp = require('amqplib')
+const connectDB = require('./config/db')
+const User = require('./models/User')
+
 const app = express();
 const PORT = 3001;
 
-require('./config/db');
-
 app.use(express.json());
 
-let users = [];
 let channel;
 
 // Create user
-app.post('/users', (req, res) => {
-    const { id, name } = req.body;
-    const newUser = { id, name };
-    users.push(newUser);
+app.post('/users', async (req, res) => {
+    try{
+        const { id, name } = req.body
 
-    // Publish message to RabbitMQ
-    try {
-        if (channel) {
-            channel.sendToQueue("userQueue", Buffer.from(JSON.stringify(newUser)));
-            console.log(" [x] Sent to RabbitMQ:", newUser);
-        } else {
-            console.error("RabbitMQ channel not available");
+        //validasi input sederhana
+        if(!id || !name){
+            return res.status(400).json({ error: "id and name required"})
         }
-    } catch (error) {
-        console.error("Failed to send message to RabbitMQ:", error);
-    }
 
-    res.status(201).json({ message: 'User created' });
+        //simpan ke MongoDB
+        const newUser = new User({id, name})
+        const savedUser = await newUser.save()
+
+        //publish ke RabbitMQ
+        if(channel){
+            channel.sendToQueue(
+                "userQueue",
+                Buffer.from(JSON.stringify(savedUser))
+            )
+           console.log(" [x-x] sent to RabbitMQ:", (savedUser)) 
+        }else{
+            console.log("RabbitMQ not available")
+        }
+
+        //Response sukses (201 Created)
+        return res.status(201).json({
+            message: "User created successfully",
+            user: savedUser
+        })
+
+    }catch(err){
+        console.log("X error creating User: ", err)
+
+        // Tanggapi duplikasi key error MongoDB
+        if (err.code === 11000){
+            return res.status(400).json({ error: "user with this id already exist"})
+        }
+    }
+});
+
+// List users
+app.get('/users', async (req, res) => {
+    const user = await user.find()
+    res.json(users);
 });
 
 // RabbitMQ setup
@@ -54,6 +80,7 @@ app.get('/users', (req, res) => {
 });
 
 app.listen(PORT, async () => {
-    console.log(`User service running on ${PORT}`);
-    await connectRabbitMQ();
+    console.log(`User service running on ${PORT}`)
+    await connectDB()
+    await connectRabbitMQ()
 });
