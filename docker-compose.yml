@@ -8,6 +8,25 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    networks:
+      - app-networks
+      
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-networks
 
   user-service:
     build:
@@ -17,8 +36,12 @@ services:
       - "3001:3001"
     environment:
       - MONGO_URL=mongodb://mongodb:27017/userdb
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
     depends_on:
       - mongodb
+      - rabbitmq
+    networks:
+      - app-networks
 
   order-service:
     build:
@@ -28,8 +51,18 @@ services:
       - "3002:3002"
     environment:
       - MONGO_URL=mongodb://mongodb:27017/orderdb
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - app-networks
 
 volumes:
   mongo-data:
+
+networks:
+  app-networks:
+    driver: bridge
