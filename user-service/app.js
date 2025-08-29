@@ -53,8 +53,8 @@ app.post('/users', async (req, res) => {
 
 // List users
 app.get('/users', async (req, res) => {
-    const user = await user.find()
-    res.json(users);
+    const user = await User.find()
+    res.json(user);
 });
 
 // RabbitMQ setup
@@ -75,9 +75,9 @@ async function connectRabbitMQ() {
 }
 
 // List users
-app.get('/users', (req, res) => {
-    res.json(users);
-});
+// app.get('/users', (req, res) => {
+//     res.json(users);
+// });
 
 app.listen(PORT, async () => {
     console.log(`User service running on ${PORT}`)

@@ -1,5 +1,6 @@
 const express = require('express')
 const axios = require('axios')
+const amqp = require('amqplib')
 
 const app = express()
 const PORT = 3002
@@ -7,6 +8,33 @@ const PORT = 3002
 app.use(express.json())
 
 let orders = []
+
+async function startRabbitMQConsumer() {
+  const RABBIT_URL = process.env.RABBITMQ_URL || "amqp://guest:guest@rabbitmq:5672";
+
+  while (true) {
+    try {
+      const connection = await amqp.connect(RABBIT_URL);
+      const channel = await connection.createChannel();
+
+      const queue = "userQueue";
+      await channel.assertQueue(queue, { durable: false });
+
+      console.log(` [*] Waiting for messages in ${queue}. To exit press CTRL+C`);
+      channel.consume(queue, (msg) => {
+        if (msg !== null) {
+          console.log(` [x] Received from RabbitMQ: ${msg.content.toString()}`);
+          channel.ack(msg);
+        }
+      });
+
+      break; // ✅ Exit retry loop once connected
+    } catch (error) {
+      console.error("RabbitMQ consumer error, retrying in 5s:", error.message);
+      await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+  }
+}
 
 //create order
 app.post('/orders', async (req, res) => {
@@ -34,4 +62,5 @@ app.get('/orders', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Order Service running on port ${PORT}`)
+    startRabbitMQConsumer()
 })

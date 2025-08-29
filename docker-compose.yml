@@ -8,6 +8,8 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    networks:
+      - app-networks
       
   rabbitmq:
     image: rabbitmq:3-management
@@ -23,6 +25,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - app-networks
 
   user-service:
     build:
@@ -36,6 +40,8 @@ services:
     depends_on:
       - mongodb
       - rabbitmq
+    networks:
+      - app-networks
 
   order-service:
     build:
@@ -51,6 +57,12 @@ services:
         condition: service_started
       rabbitmq:
         condition: service_healthy
+    networks:
+      - app-networks
 
 volumes:
   mongo-data:
+
+networks:
+  app-networks:
+    driver: bridge
